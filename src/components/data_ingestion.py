@@ -1,18 +1,19 @@
-def audio_to_text():
+import os
+from unstructured.partition.pdf import partition_pdf
+def processDocument():
     
-
-    directory_path = "/home/rajeev-kumar/Desktop/Hack-RX/datafile"
+    
+    directory_path = "/Users/rahulraj/Hack-RX/datafile"
 
     for filename in os.listdir(directory_path):
         full_path = os.path.join(directory_path, filename)
         if os.path.isfile(full_path):
     
             # Initialize the loader with config and desired transcript format
-            loader = AssemblyAIAudioTranscriptLoader(
+            loader = partition_pdf(
                 file_path=full_path,
-                transcript_format=TranscriptFormat.TEXT,
-                config=config,
-                api_key=ass_api_key
+                
+                
             )
             # Load the transcription document(s)
             docs4 = loader.load()
