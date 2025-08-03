@@ -12,12 +12,6 @@ def processDocument():
             # Initialize the loader with config and desired transcript format
             loader = partition_pdf(
                 file_path=full_path,
-                
-                
             )
-            # Load the transcription document(s)
-            docs4 = loader.load()
-
-            audio_text.append(docs4[0].page_content)
-            # print(docs4[0].page_content)
-    return audio_text
+            
+  
