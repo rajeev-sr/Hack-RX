@@ -5,7 +5,7 @@ from app.services.nodes import (
     retrieval_node,
     rerank_node,
     generation_node,
-    self_correction_node,
+    correction_node,
 )
 from app.state import AppState
 
@@ -27,7 +27,7 @@ async def execute_graph(query: str) -> dict:
     workflow.add_node("retrieve", retrieval_node)
     workflow.add_node("rerank", rerank_node)
     workflow.add_node("generate", generation_node)
-    workflow.add_node("correct", self_correction_node)
+    workflow.add_node("correct", correction_node)
 
     workflow.set_entry_point("query_analysis")
     
