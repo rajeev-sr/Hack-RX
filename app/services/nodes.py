@@ -3,9 +3,7 @@ from app.state import AppState
 from app.services.llm_service import (
     analyze_query,
     rerank_documents,
-    search_web,
-    generate_response,
-    correct_response,
+    generate_initial_decision,
 )
 from app.services.retrival import retrieve_from_qdrant
 
@@ -13,43 +11,48 @@ async def query_analysis_node(state: AppState) -> AppState:
     """Analyzes the user's query."""
     analyzed_query = await analyze_query(state["original_query"])
     state["analyzed_query"] = analyzed_query
+    print(f"Analyzed Query: {analyzed_query}")
     return state
 
 async def retrieval_node(state: AppState) -> AppState:
     """Retrieves documents from Qdrant."""
-    documents = await retrieve_from_qdrant(state["analyzed_query"])
+    print("---NODE: RETRIEVING DOCUMENTS---")
+    search_queries = state["analyzed_query"].get("search_queries", [])
+    documents = await retrieve_from_qdrant(search_queries)
     state["retrieved_docs"] = documents
+    print(f"Retrieved {len(documents)} documents.")
     return state
 
 async def rerank_node(state: AppState) -> AppState:
-    """Re-ranks the retrieved documents."""
+    """Re-ranks the retrieved documents for relevance."""
+    print("---NODE: RERANKING DOCUMENTS---")
     reranked_docs = await rerank_documents(state["original_query"], state["retrieved_docs"])
     state["reranked_docs"] = reranked_docs
-    # Example condition for web search
-    if not reranked_docs or len(reranked_docs) < 2:
-        state["needs_web_search"] = True
     return state
 
-async def web_search_node(state: AppState) -> AppState:
-    """Performs a web search for additional context."""
-    web_results = await search_web(state["analyzed_query"])
-    state["web_results"] = web_results
-    return state
 
 async def generation_node(state: AppState) -> AppState:
-    """Generates the final response."""
-    response = await generate_response(
-        state["original_query"], state.get("reranked_docs", []), state.get("web_results")
+    """Generates the initial decision and a critique of that decision."""
+    print("---NODE: GENERATING INITIAL DECISION---")
+    decision, critique = await generate_initial_decision(
+        state["analyzed_query"],
+        state.get("reranked_docs", []),
+        state.get("correction_feedback")
     )
-    state["generated_response"] = response
-    # Example condition for correction
-    if "uncertain" in response.lower():
-        state["needs_correction"] = True
+    state["generated_decision"] = decision
+    state["critique"] = critique
+    state["needs_correction"] = critique.get("correction_needed", False)
+    
+    if not state["needs_correction"]:
+        state["final_response"] = decision
+        
     return state
 
-async def self_correction_node(state: AppState) -> AppState:
-    """Corrects the generated response."""
-    corrected_response = await correct_response(state["generated_response"])
-    state["final_response"] = corrected_response
-    state["needs_correction"] = False  # End the loop
+async def correction_node(state: AppState) -> AppState:
+    """Prepares feedback for a correction attempt."""
+    print("---NODE: PREPARING CORRECTION---")
+    critique = state.get("critique", {})
+    state["correction_feedback"] = critique
+    print(f"Correction feedback: {critique.get('feedback')}")
+    state["needs_correction"] = False 
     return state
