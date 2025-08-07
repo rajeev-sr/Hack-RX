@@ -6,38 +6,31 @@ from sentence_transformers import CrossEncoder
 from dotenv import load_dotenv
 from fastapi import HTTPException
 load_dotenv()
-class KeyEntities(RootModel[dict[str, Union[str, int, float]]]):
-    pass
+
 
 class AnalyzedQuery(BaseModel):
-    """Structured representation of a user's insurance query.""" 
-    domain: str = Field(..., description="The general domain of the query (e.g., 'Insurance', 'Legal Compliance', 'Human Resources', 'Contract Management').")
-    
-    key_entities: Optional[KeyEntities] = Field(..., description="A dictionary of key-value pairs extracted from the query, specific to the identified domain.")
-    
-    search_queries: List[str] = Field(..., description="A list of 3-5 detailed, rephrased questions for semantic search against a document database, tailored to the domain.")
-    
-    hypotheses: List[str] = Field(..., description="A list of potential outcomes or answers based on the query and common rules within the domain.")
+    domain: str
+    key_entities: Optional[Dict[str, Union[str, int, float]]] = None
+    search_queries: List[str]
+    hypotheses: List[str]
 
 class DocumentQueryResult(BaseModel):
-    """Structured JSON response for a query against a document set."""
-    decision: str = Field(..., description="The final, summary answer to the user's query (e.g., 'Approved', 'Compliant', 'Eligible', 'Termination Clause Found').")
-    details: Dict[str, Any] = Field(..., description="A dictionary containing specific results, like an approved amount, compliance status, or contract details.")
-    justification: str = Field(..., description="A clear, concise, step-by-step reasoning for the decision, explaining how the document clauses apply to the query's key entities.")
-    clauses: List[str] = Field(..., description="A list of the specific clause IDs or text snippets from the documents that were used to make the decision.")
-
+    decision: str
+    details: Optional[Dict[str, Union[str, int, float]]] = None
+    justification: str
+    clauses: List[str]
+    
+    
 class DecisionCritique(BaseModel):
-    """A critique of the query result to check for correctness."""
-    correction_needed: bool = Field(..., description="Whether the original decision needs to be corrected.")
-    confidence_score: float = Field(..., description="A score from 0.0 to 1.0 indicating confidence in the original decision.")
-    feedback: str = Field(..., description="Detailed feedback for why a correction is or is not needed. If needed, suggest specific improvements.")
+    correction_needed: bool
+    confidence_score: float 
+    feedback: str
     
 # Core LLM Functions
 
 llm=init_chat_model(model_provider="openai",model="gpt-4.1")
 async def analyze_query(query: str) -> dict:
     try:
-        # LLM call to analyze query and translate to structured Json format
         SYSTEM_PROMPT = """
         You are a Domain-Aware Query Analyzer Assistant. Your job is to convert unstructured user queries into structured representations that downstream applications can use for accurate document retrieval, policy validation, contract management, etc.
 
@@ -148,6 +141,7 @@ async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: 
         "context": context,
         "correction_instruction": correction_instruction
     })
+    print("Combined Response:", response)
     
     return response.decision.model_dump(), response.critique.model_dump()
 async def rerank_documents(query: str, docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

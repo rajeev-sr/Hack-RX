@@ -1,4 +1,3 @@
-# This file would contain the logic for interacting with Qdrant
 from dotenv import load_dotenv
 from logging import Logger
 from typing import List, Dict, Any
@@ -11,21 +10,13 @@ load_dotenv()
 QDRANT_URL=os.getenv("QDRANT_URL")
 COLLECTION_NAME=os.getenv("QDRANT_COLLECTION_NAME")
 EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL","text-embedding-3-large")
-SEARCH_TOP_K = int(os.getenv("SEARCH_TOP_K", "5"))
+SEARCH_TOP_K = int(os.getenv("SEARCH_TOP_K", "3"))
 
 QDRANT_API_KEY=os.getenv("QDRANT_API_KEY")
 
 embeddings=OpenAIEmbeddings(model=EMBEDDING_MODEL)
 async def retrieve_from_qdrant(search_queries: List[str]) -> List[Dict[str, Any]]:
-    """
-    Retrieve relevant documents from Qdrant based on multiple search queries using LangChain.
-    
-    Args:
-        search_queries: List of search query strings
-        
-    Returns:
-        List of document dictionaries with content and metadata
-    """
+
     if not search_queries:
         print("No search queries provided")
         return []
@@ -67,7 +58,7 @@ async def retrieve_from_qdrant(search_queries: List[str]) -> List[Dict[str, Any]
         print(f"Error retrieving documents from Qdrant: {str(e)}")
         return []
     
-    """
+    """"
     Retrieve relevant documents from Qdrant based on multiple search queries using LangChain.
     
     Args:

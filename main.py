@@ -11,7 +11,7 @@ app = FastAPI(
 
 # Helper function to convert ObjectId to string
 @app.get("/")
-def server():
+def health_check():
     return {"message":"server is running"}
 
 class QueryRequest(BaseModel):

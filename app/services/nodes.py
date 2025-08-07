@@ -11,7 +11,7 @@ async def query_analysis_node(state: AppState) -> AppState:
     """Analyzes the user's query."""
     analyzed_query = await analyze_query(state["original_query"])
     state["analyzed_query"] = analyzed_query
-    print(f"Analyzed Query: {analyzed_query}")
+    print(f"==========Analyzed Query=======\n: {analyzed_query}")
     return state
 
 async def retrieval_node(state: AppState) -> AppState:
@@ -21,6 +21,7 @@ async def retrieval_node(state: AppState) -> AppState:
     documents = await retrieve_from_qdrant(search_queries)
     state["retrieved_docs"] = documents
     print(f"Retrieved {len(documents)} documents.")
+    # print(f"==========Retrieved Documents=======\n: {documents}")
     return state
 
 async def rerank_node(state: AppState) -> AppState:
@@ -42,6 +43,8 @@ async def generation_node(state: AppState) -> AppState:
     state["generated_decision"] = decision
     state["critique"] = critique
     state["needs_correction"] = critique.get("correction_needed", False)
+    print(f"Critique: {critique}")
+    print(f"Decision: {decision}")
     
     if not state["needs_correction"]:
         state["final_response"] = decision
