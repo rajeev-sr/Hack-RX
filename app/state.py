@@ -1,12 +1,12 @@
-from typing import TypedDict, Optional, List
+from typing import TypedDict, Optional, List, Dict, Any
 
 class AppState(TypedDict):
     original_query: str
-    analyzed_query: Optional[dict]
-    retrieved_docs: Optional[List[str]]
-    reranked_docs: Optional[List[str]]
-    web_results: Optional[str]
-    generated_response: Optional[str]
-    final_response: Optional[dict]
-    needs_web_search: Optional[bool]
+    analyzed_query: Optional[Dict]
+    retrieved_docs: Optional[List[Dict[str, Any]]]
+    reranked_docs: Optional[List[Dict[str, Any]]] 
+    generated_decision: Optional[Dict]
+    final_response: Optional[Dict]
+    critique: Optional[Dict]
     needs_correction: Optional[bool]
+    correction_feedback: Optional[Dict]
