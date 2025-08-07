@@ -52,7 +52,6 @@ def extract_from_pdf(file_bytesio):
                     page_text += word['text'] + ' '
 
             if page_text.strip():
-                extracted_text += f"\n--- Page {page_number + 1} ---\n"
                 extracted_text += page_text.strip()
 
     return {
@@ -194,3 +193,64 @@ def process_file(url):
 
     else:
         raise Exception("Unsupported file format. Only PDF, DOCX, and EML are supported.")
+    
+# print("Data preprocessing module loaded successfully.",process_file("https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03&st=2025-07-04T09%3A11%3A24Z&se=2027-07-05T09%3A11%3A00Z&sr=b&sp=r&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D"))
+from langchain_core.documents import Document
+
+def load_document(url,source: str = "user_data") -> list[Document]:
+    
+    data_list = [process_file(url)
+]
+
+    documents = []
+
+    for data in data_list:
+        doc_parts = []
+
+        if 'text' in data and data['text']:
+            doc_parts.append(data['text'])
+
+        if 'tables' in data and data['tables']:
+            for table_idx, table in enumerate(data['tables'], 1):
+                table_str = ""
+                for row in table:
+                    row_items = [str(item) if item is not None else "" for item in row]
+                    table_str += "| " + " | ".join(row_items) + " |\n"
+                doc_parts.append(table_str.strip())
+
+        if 'image_summaries' in data and data['image_summaries']:
+            doc_parts.append("## Image Summaries")
+            for img_summary in data['image_summaries']:
+                page = img_summary.get('page', 'N/A')
+                img_idx = img_summary.get('image_index', 'N/A')
+                summary = img_summary.get('ocr_summary', '')
+                doc_parts.append(f"{summary}")
+
+        page_content = "\n".join(doc_parts)
+
+        document = Document(
+            page_content=page_content,
+            metadata={"source": source}
+        )
+
+        documents.append(document)
+
+    return documents
+
+
+
+
+# Example Usage:
+# data = {
+#     "text": "This is a long paragraph of text...",
+#     "tables": [
+#         [["c1", "c2"], ["Organ Donor's Hospitalisation Expenses", None], ["Row3 Col1", "Row3 Col2"]],
+#         [["Another Table Row1Col1", "Row1Col2"], ["Row2Col1", "Row2Col2"]]
+#     ],
+#     "image_summaries": [{'page': 1, 'image_index': 1, 'ocr_summary': 'ARe FRAT\n\nNational Insurance'}]
+# }
+# data=process_file("https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03&st=2025-07-04T09%3A11%3A24Z&se=2027-07-05T09%3A11%3A00Z&sr=b&sp=r&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D")
+
+# document_1 = dict_to_document(source="document")
+# print(document_1.page_content)
+# print(document_1.metadata)
