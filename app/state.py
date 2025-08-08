@@ -1,12 +1,18 @@
-from typing import TypedDict, Optional, List, Dict, Any
-
+from typing import TypedDict, Optional, List, Dict
+from langchain_core.documents import Document
 class AppState(TypedDict):
-    original_query: str
-    analyzed_query: Optional[Dict]
-    retrieved_docs: Optional[List[Dict[str, Any]]]
-    reranked_docs: Optional[List[Dict[str, Any]]] 
-    generated_decision: Optional[Dict]
-    final_response: Optional[Dict]
-    critique: Optional[Dict]
-    needs_correction: Optional[bool]
-    correction_feedback: Optional[Dict]
+    jobId: str
+    document_url: str
+    original_questions: List[str]
+    
+    split_docs: Optional[List[Document]]
+    ingestion_status: Optional[str]
+    
+    analyzed_queries: Optional[List[Dict]]
+    shared_context: Optional[List[str]]
+    reranked_contexts: Optional[List[List[str]]]
+    final_answers: Optional[List[Dict]]
+
+
+
+ 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI,HTTPException
 from pydantic import BaseModel
-from typing import Optional
-from app.services import graph_service
+from typing import Optional,List
+from app.services.graph_service import execute_graph
 
 
 app = FastAPI(
@@ -15,7 +15,10 @@ def health_check():
     return {"message":"server is running"}
 
 class QueryRequest(BaseModel):
-    query: str
+    jobId:str
+    # url of the document
+    documents:str
+    questions: List[str]
 
 class DecisionResponse(BaseModel):
     decision: str
@@ -23,13 +26,18 @@ class DecisionResponse(BaseModel):
     justification: str
     clauses: list[str]
 
-@app.post("/process-query", response_model=DecisionResponse)
+class ProcessResponse(BaseModel):
+    answers: List[DecisionResponse]
+    
+@app.post("/process-query", response_model=ProcessResponse)
 async def process_query(request: QueryRequest):
-    """
-    Processes a user's query and returns a decision.
-    """
+    if not all([request.jobId, request.documents, request.questions]):
+        raise HTTPException(status_code=400, detail="jobId, documents (url), and a list of questions are required.")
+    
     try:
-        result = await graph_service.execute_graph(request.query)
-        return result
+        results = await execute_graph(request.jobId, request.documents, request.questions)
+        return {"answers": results}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"An error occurred during graph execution for jobId {request.jobId}: {e}")
+        raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
+

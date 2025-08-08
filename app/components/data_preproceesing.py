@@ -3,7 +3,6 @@ import pdfplumber
 import docx
 import mailparser
 from bs4 import BeautifulSoup
-import pandas as pd
 from PIL import Image
 import pytesseract
 import io
@@ -194,13 +193,11 @@ def process_file(url):
     else:
         raise Exception("Unsupported file format. Only PDF, DOCX, and EML are supported.")
     
-# print("Data preprocessing module loaded successfully.",process_file("https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03&st=2025-07-04T09%3A11%3A24Z&se=2027-07-05T09%3A11%3A00Z&sr=b&sp=r&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D"))
 from langchain_core.documents import Document
 
 def load_document(url,source: str = "user_data") -> list[Document]:
     
-    data_list = [process_file(url)
-]
+    data_list = [process_file(url)]
 
     documents = []
 
@@ -238,19 +235,4 @@ def load_document(url,source: str = "user_data") -> list[Document]:
     return documents
 
 
-print(load_document("https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03&st=2025-07-04T09%3A11%3A24Z&se=2027-07-05T09%3A11%3A00Z&sr=b&sp=r&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D"))
-
-# Example Usage:
-# data = {
-#     "text": "This is a long paragraph of text...",
-#     "tables": [
-#         [["c1", "c2"], ["Organ Donor's Hospitalisation Expenses", None], ["Row3 Col1", "Row3 Col2"]],
-#         [["Another Table Row1Col1", "Row1Col2"], ["Row2Col1", "Row2Col2"]]
-#     ],
-#     "image_summaries": [{'page': 1, 'image_index': 1, 'ocr_summary': 'ARe FRAT\n\nNational Insurance'}]
-# }
-# data=process_file("https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03&st=2025-07-04T09%3A11%3A24Z&se=2027-07-05T09%3A11%3A00Z&sr=b&sp=r&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D")
-
-# document_1 = dict_to_document(source="document")
-# print(document_1.page_content)
-# print(document_1.metadata)
+# print(load_document("https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03&st=2025-07-04T09%3A11%3A24Z&se=2027-07-05T09%3A11%3A00Z&sr=b&sp=r&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D"))
