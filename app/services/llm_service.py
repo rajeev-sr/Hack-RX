@@ -141,7 +141,7 @@ async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: 
     
     response = await chain.ainvoke({
         "domain": analyzed_query.get("domain"),
-        "analyzed_query": str(analyzed_query),
+        "analyzed_query": analyzed_query,
         "context": context,
         "correction_instruction": correction_instruction
     })
