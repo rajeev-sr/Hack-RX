@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any, Union,Tuple
 from sentence_transformers import CrossEncoder
 from dotenv import load_dotenv
 from fastapi import HTTPException
+
 load_dotenv()
 
 
@@ -25,10 +26,13 @@ class DecisionCritique(BaseModel):
     correction_needed: bool
     confidence_score: float 
     feedback: str
-    
+
+class RerankedDocuments(BaseModel):
+    relevant_documents: List[str]
+
 # Core LLM Functions
 
-llm=init_chat_model(model_provider="openai",model="gpt-4.1")
+llm=init_chat_model(model_provider="openai",model="gpt-5-mini")
 async def analyze_query(query: str) -> dict:
     try:
         SYSTEM_PROMPT = """
@@ -93,7 +97,7 @@ async def analyze_query(query: str) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: Optional[dict] = None) -> Tuple[dict, dict]:
     """Generates and critiques a decision in a single, domain-agnostic step."""
-    context = "\n\n".join(doc["content"] for doc in docs)
+    context = "\n\n".join(docs)
     correction_instruction=None
     if feedback:
         correction_instruction=f"""this is the second attempt, firts attempt was flawed Plz pay close attention to the feedback
@@ -141,46 +145,23 @@ async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: 
         "context": context,
         "correction_instruction": correction_instruction
     })
-    print("Combined Response:", response)
+    # print("Combined Response:", response)
     
     return response.decision.model_dump(), response.critique.model_dump()
-async def rerank_documents(query: str, docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Re-ranks retrieved documents based on relevance to the original query.
-    
-    Args:
-        query: Original user query
-        docs: List of documents retrieved from Qdrant
-        
-    Returns:
-        Re-ranked list of documents
-    """
-    if not docs:
-        print("No documents to rerank")
+
+cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+async def rerank_documents(original_query: str, documents: List[str]) -> List[str]:
+    if not documents:
         return []
+    query_doc_pairs = [[original_query, doc] for doc in documents]
     
-    try:
-        print(f"Reranking {len(docs)} documents")
-        if len(docs) < 2:
-            return docs
-            
-        texts = [doc["content"] for doc in docs]
-        
-        reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-        pairs = [[query, text] for text in texts]
-        scores = reranker.predict(pairs)
-        
-        for i, doc in enumerate(docs):
-            # Store both scores - original and reranked
-            doc["metadata"]["original_score"] = doc["metadata"].get("score", 0.0)
-            doc["metadata"]["rerank_score"] = float(scores[i])
-            doc["metadata"]["score"] = float(scores[i])  
-        # Sort
-        reranked_docs = sorted(docs, key=lambda x: x["metadata"]["score"], reverse=True)
-        
-        print(f"Reranking complete. Top document score: {reranked_docs[0]['metadata']['score']:.4f}")
-        return reranked_docs
-        
-    except Exception as e:
-        print(f"Error reranking documents: {str(e)}")
-        return docs
+    scores = cross_encoder.predict(query_doc_pairs)
+    
+    doc_scores = list(zip(documents, scores))
+    doc_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    reranked_docs = [doc for doc, score in doc_scores]
+    
+    return reranked_docs
+   
+    
