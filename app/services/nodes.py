@@ -12,28 +12,33 @@ from app.services.retrival import retrieve_from_qdrant
 
 async def preprocessing_node(state: AppState) -> AppState:
     print(f"---NODE (Job ID: {state['jobId']}): PREPROCESSING DOCUMENT---")
-    state['split_docs'] = load_document(state['document_url'])
-    print(f"Successfully split document into {len(state['split_docs'])} chunks.")
-    return state
+    split_docs = load_document(state['document_url'])
+    print(f"Successfully split document into {len(split_docs)} chunks.")
+    return {"split_docs": split_docs}
 
 async def db_loading_node(state: AppState) -> AppState:
     collection_name = state['jobId']
     print(f"---NODE (Job ID: {collection_name}): LOADING CHUNKS TO DB---")
-    state['ingestion_status'] =  result(state['split_docs'], collection_name)
-    return state
+    ingestion_status = await asyncio.to_thread(result, state['split_docs'], collection_name)
+    return {"ingestion_status": ingestion_status}
 
 async def query_analysis_node(state: AppState) -> AppState:
     questions = state['original_questions']
     print(f"---NODE (Job ID: {state['jobId']}): BATCH ANALYZING {len(questions)} QUERIES---")
     analysis_tasks = [analyze_query(q) for q in questions]
     analyzed_queries = await asyncio.gather(*analysis_tasks)
-    state['analyzed_queries'] = analyzed_queries
     
     primary_domain = analyzed_queries[0].get("domain", "general") if analyzed_queries else "general"
     for doc in state['split_docs']:
         doc.metadata['domain'] = primary_domain
         
-    return state
+    return {"analyzed_queries": analyzed_queries}
+
+async def wait_for_indexing_node(state: AppState) -> AppState:
+    wait_seconds = 1
+    print(f"---NODE (Job ID: {state['jobId']}): WAITING FOR {wait_seconds}s FOR DB INDEXING---")
+    await asyncio.sleep(wait_seconds)
+    return {}
 
 async def retrieval_node(state: AppState) -> AppState:
     collection_name = state['jobId']
@@ -44,8 +49,7 @@ async def retrieval_node(state: AppState) -> AppState:
     primary_domain = analyzed_queries[0].get("domain") if analyzed_queries else "general"
     
     retrieved_docs = await retrieve_from_qdrant(all_search_queries, primary_domain, collection_name)
-    state['shared_context'] = retrieved_docs
-    return state
+    return {"shared_context": retrieved_docs}
 
 async def rerank_node(state: AppState) -> AppState:
     
@@ -55,9 +59,8 @@ async def rerank_node(state: AppState) -> AppState:
 
     rerank_tasks = [rerank_documents(query, shared_context) for query in original_questions]
     reranked_contexts = await asyncio.gather(*rerank_tasks)
-    
-    state['reranked_contexts'] = reranked_contexts
-    return state
+
+    return {"reranked_contexts": reranked_contexts}
 
 async def generation_node(state: AppState) -> AppState:
     
@@ -72,7 +75,9 @@ async def generation_node(state: AppState) -> AppState:
     results_with_critiques = await asyncio.gather(*generation_tasks)
     
     final_answers = [result[0] for result in results_with_critiques]
-    state['final_answers'] = final_answers
+    # critiques = [result[1] for result in results_with_critiques]
+    
+    state["final_answers"] = final_answers
     return state
 
 async def correction_node(state: AppState) -> AppState:

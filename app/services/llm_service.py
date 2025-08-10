@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field,RootModel
 from langchain.chat_models import init_chat_model
+from langchain_openai import ChatOpenAI
 from typing import List, Optional, Dict, Any, Union,Tuple
 from sentence_transformers import CrossEncoder
 from dotenv import load_dotenv
@@ -10,29 +11,34 @@ load_dotenv()
 
 
 class AnalyzedQuery(BaseModel):
-    domain: str
-    key_entities: Optional[Dict[str, Union[str, int, float]]] = None
-    search_queries: List[str]
-    hypotheses: List[str]
+    domain: str =Field(..., description="The general domain of the query (e.g., 'Insurance', 'Legal Compliance').")
+    key_entities: Optional[Dict[str, Any]] = Field(default_factory=dict, description="A dictionary of key-value pairs extracted from the query.")
+    search_queries: List[str] = Field(..., description="A list of 3-5 detailed questions for semantic search.")
+    hypotheses: List[str] = Field(..., description="A list of potential outcomes or answers.")
 
 class DocumentQueryResult(BaseModel):
-    decision: str
-    details: Optional[Dict[str, Union[str, int, float]]] = None
-    justification: str
-    clauses: List[str]
-    
-    
+    decision: str = Field(..., description="The final, summary answer to the user's query.")
+    details: Dict[str, Any] = Field(default_factory=dict, description="A dictionary containing specific results. Give any amount (money) details if available.")
+    justification: str = Field(..., description="A clear, step-by-step reasoning for the decision.")
+    clauses: List[str] = Field(default_factory=list, description="A list of specific clause IDs or text snippets from the documents.")
+
 class DecisionCritique(BaseModel):
-    correction_needed: bool
-    confidence_score: float 
-    feedback: str
+    correction_needed: bool = Field(..., description="Whether the original decision needs to be corrected.")
+    confidence_score: float = Field(..., description="A score from 0.0 to 1.0 indicating confidence.")
+    feedback: str = Field(..., description="Detailed feedback for why a correction is or is not needed.")
 
-class RerankedDocuments(BaseModel):
-    relevant_documents: List[str]
+class CombinedResponse(BaseModel):
+    decision: DocumentQueryResult
+    critique: DecisionCritique
 
-# Core LLM Functions
 
-llm=init_chat_model(model_provider="openai",model="gpt-5-mini")
+try:
+    llm = ChatOpenAI(model="gpt-4-turbo", temperature=0, request_timeout=120)
+    cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+except Exception as e:
+    print(f"CRITICAL: Failed to initialize AI models: {e}")
+    llm = None
+    cross_encoder = None
 async def analyze_query(query: str) -> dict:
     try:
         SYSTEM_PROMPT = """
@@ -96,15 +102,15 @@ async def analyze_query(query: str) -> dict:
         print("Error in analyze_query:", e)
         raise HTTPException(status_code=500, detail=str(e))
 async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: Optional[dict] = None) -> Tuple[dict, dict]:
-    """Generates and critiques a decision in a single, domain-agnostic step."""
-    context = "\n\n".join(docs)
+    context = "\n\n".join(doc for doc in docs)
     correction_instruction=None
     if feedback:
         correction_instruction=f"""this is the second attempt, firts attempt was flawed Plz pay close attention to the feedback
         {feedback.get("feedback")}
         """
-    system_prompt=ChatPromptTemplate.from_template(
-        """
+    system_prompt=ChatPromptTemplate.from_messages(
+        [("system",
+         """
         you are multi-persona AI assistant.you will act as a meticulous Analyst for the {domain} domain and then as a skeptical Senior Auditor.
         
         Analyzed Query: {analyzed_query}
@@ -117,6 +123,7 @@ async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: 
         3. Step-by-Step Reasoning: Evaluate each entity against its matched clause. Your reasoning must be specific to the {domain}domain.
         4. Synthesize Decision: Combine your evaluations into a final decision.
         5. Format Output: Provide your final decision as a JSON object conforming to the `DocumentQueryResult` schema. The `decision` and `details` fields must be relevant to the domain.
+        6. try to keep the ans as short as possible and to the point. No extra information.
         ----------------------------------------------------------
         Part 2: Auditor's Critique
         
@@ -130,26 +137,39 @@ async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: 
         Combined Final Output:
         Return a single JSON object with two keys: "decision" (the `DocumentQueryResult` JSON) and "critique" (the `DecisionCritique` JSON).
         """
+        ),
+        ("human", "Analyzed Query: \n{analyzed_query}\n\nContext:\n{context}")
+        ]
     )
-    class CombinedResponse(BaseModel):
-        decision: DocumentQueryResult
-        critique: DecisionCritique
+    
          
     
     structured_llm = llm.with_structured_output(CombinedResponse)
     chain = system_prompt | structured_llm
     
-    response = await chain.ainvoke({
-        "domain": analyzed_query.get("domain"),
-        "analyzed_query": analyzed_query,
-        "context": context,
-        "correction_instruction": correction_instruction
-    })
-    # print("Combined Response:", response)
-    
-    return response.decision.model_dump(), response.critique.model_dump()
+    try:
+        response = await chain.ainvoke({
+            "domain": analyzed_query.get("domain"),
+            "analyzed_query": analyzed_query,
+            "context": context,
+            "correction_instruction": correction_instruction
+        })
+        return response.decision.model_dump(), response.critique.model_dump()
+    except Exception as e:
+        print(f"Error in generate_initial_decision: {e}")
+        error_decision = {
+            "decision": "Error", 
+            "details": {}, 
+            "justification": f"Failed to generate a decision due to an internal error: {e}", 
+            "clauses": []
+        }
+        error_critique = {
+            "correction_needed": False, 
+            "confidence_score": 0.0, 
+            "feedback": "Generation failed."
+        }
+        return error_decision, error_critique
 
-cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 async def rerank_documents(original_query: str, documents: List[str]) -> List[str]:
     if not documents:
         return []

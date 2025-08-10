@@ -1,6 +1,7 @@
 from langchain_community.vectorstores import Qdrant
 from app.components.data_preproceesing import load_document
-from langchain.embeddings import OpenAIEmbeddings   
+# from langchain.embeddings import OpenAIEmbeddings  
+from langchain_community.embeddings import OpenAIEmbeddings 
 import os
 from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter

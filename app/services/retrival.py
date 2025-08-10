@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from typing import List, Dict, Any
-from langchain_openai import OpenAIEmbeddings
+# from langchain_openai import OpenAIEmbeddings
+from langchain_community.embeddings import OpenAIEmbeddings
 from qdrant_client import AsyncQdrantClient, models
 import os
 import asyncio
@@ -22,7 +23,6 @@ except Exception as e:
 
 
 async def _search_single_query(query: str, domain: str, collection_name: str) -> List[models.ScoredPoint]:
-    """Helper function to embed a single query and perform an async search in Qdrant."""
     try:
         query_vector = await embedding_model.aembed_query(query)
         search_results = await qdrant_client.search(
