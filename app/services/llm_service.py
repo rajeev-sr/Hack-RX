@@ -1,8 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field,RootModel
-from langchain.chat_models import init_chat_model
+from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from typing import List, Optional, Dict, Any, Union,Tuple
+from typing import List, Optional, Dict, Any,Tuple
 from sentence_transformers import CrossEncoder
 from dotenv import load_dotenv
 from fastapi import HTTPException
@@ -33,7 +32,7 @@ class CombinedResponse(BaseModel):
 
 
 try:
-    llm = ChatOpenAI(model="gpt-4-turbo", temperature=0, request_timeout=120)
+    llm=ChatOpenAI(temperature=0, model="gpt-4-vision-preview", max_tokens=1024)
     cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 except Exception as e:
     print(f"CRITICAL: Failed to initialize AI models: {e}")
@@ -141,8 +140,6 @@ async def generate_initial_decision(analyzed_query: dict, docs: list, feedback: 
         ("human", "Analyzed Query: \n{analyzed_query}\n\nContext:\n{context}")
         ]
     )
-    
-         
     
     structured_llm = llm.with_structured_output(CombinedResponse)
     chain = system_prompt | structured_llm

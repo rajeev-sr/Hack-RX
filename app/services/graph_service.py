@@ -12,8 +12,6 @@ from app.services.nodes import (
 )
 from typing import List
 from app.state import AppState
-import asyncio
-import traceback
 
 def should_correct(state: AppState) -> str:
     if state.get("needs_correction"):
@@ -24,16 +22,7 @@ def should_correct(state: AppState) -> str:
         return END
 async def execute_graph(jobId: str, url: str, questions: List[str]) -> List[dict]:
     workflow = StateGraph(AppState)
-    def log_node(name, fn):
-        async def wrapper(state):
-            print(f"--- RUNNING NODE: {name} ---")
-            try:
-                return await fn(state)
-            except Exception as e:
-                print(f"ERROR in node {name}: {e}")
-                traceback.print_exc()
-                raise
-        return wrapper
+    
     workflow.add_node("preprocessing", preprocessing_node)
     workflow.add_node("load_to_db",db_loading_node)
     workflow.add_node("wait_for_indexing", wait_for_indexing_node)

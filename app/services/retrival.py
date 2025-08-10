@@ -1,6 +1,5 @@
 from dotenv import load_dotenv
 from typing import List, Dict, Any
-# from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import OpenAIEmbeddings
 from qdrant_client import AsyncQdrantClient, models
 import os
@@ -80,3 +79,4 @@ async def retrieve_from_qdrant(search_queries: List[str], domain: str, collectio
     
     print(f"Retrieved {len(final_content)} unique documents after deduplication")
     return final_content
+
